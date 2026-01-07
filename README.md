@@ -59,6 +59,148 @@ Real estate valuation is a complex problem influenced by numerous location-speci
 
 ---
 
+## 🏆 Advanced Techniques & Methodologies
+
+> **What sets this project apart:** This section highlights the sophisticated, production-grade techniques implemented that go beyond typical ML tutorials.
+
+### 🛡️ Data Leakage Prevention
+
+```
+❌ WRONG: Fit encoders on ALL data → Transform → Split
+✅ CORRECT: Split FIRST → Fit on Train ONLY → Transform both
+```
+
+| Strategy | Implementation |
+|----------|----------------|
+| **Split-First Protocol** | All transformations fitted exclusively on training data |
+| **Temporal Awareness** | Extracted `SoldYear` to capture market inflation effects |
+| **Strict Isolation** | Test set never seen during any preprocessing step |
+
+### 🎯 Intelligent Missing Value Imputation
+
+Instead of dropping 50%+ of data or using naive mean/median fills:
+
+| Technique | Applied To | Why It's Better |
+|-----------|------------|-----------------|
+| **KNN Imputation (k=5)** | `BuildingArea`, `YearBuilt`, `Car`, `Bathroom`, `Landsize` | Leverages similarity between properties — a 3-bedroom house in Richmond likely has similar building area to other 3-bedroom Richmond houses |
+| **Spatial Centroid Imputation** | `Latitude`, `Longitude` | Custom algorithm: computes median coordinates per suburb from training data, with global median fallback for rare suburbs |
+| **Mode/Median with Validation** | `Regionname`, `Propertycount` | Simple but applied AFTER split to prevent leakage |
+
+```python
+# Spatial Centroid Imputation (Rare Technique)
+# Instead of dropping rows with missing coordinates:
+
+# 1. Compute suburb centroids from TRAINING data only
+suburb_coords = X_train.groupby('Suburb')[['Lattitude', 'Longtitude']].median()
+
+# 2. Filter unreliable suburbs (< 3 samples)
+reliable_suburbs = suburb_counts[suburb_counts >= 3].index
+
+# 3. Apply to both sets with global fallback
+X_train['Lattitude'].fillna(X_train['Suburb'].map(suburb_coords['Lattitude']))
+```
+
+### 📊 Dual Scaling Strategy
+
+> **Key Insight:** Not all features should be scaled the same way.
+
+| Scaler | Features | Rationale |
+|--------|----------|-----------|
+| **RobustScaler** | `Rooms`, `Distance`, `Bathroom`, `Car`, `Landsize`, `BuildingArea`, `Propertycount` | Uses IQR instead of variance — **immune to outliers**. A $9M mansion won't skew the scale. |
+| **StandardScaler** | `YearBuilt`, `Latitude`, `Longitude` | Normally distributed features without extreme outliers |
+
+```python
+# Why RobustScaler for Landsize?
+# Landsize has outliers: 99th percentile = 1,200 sqm, max = 400,000+ sqm
+# StandardScaler would compress 99% of data into tiny range
+# RobustScaler ignores outliers: centers on median, scales by IQR
+```
+
+### 🔐 Target Encoding with Smoothing
+
+> **Problem:** `Suburb` has 300+ unique values — One-Hot Encoding creates 300 sparse columns.
+
+| Approach | Issues |
+|----------|--------|
+| ❌ One-Hot Encoding | Dimensionality explosion, sparse matrix, overfitting |
+| ❌ Label Encoding | Imposes false ordinal relationship |
+| ✅ **Target Encoding + Smoothing** | Maps each suburb to average price, regularized |
+
+```python
+# Target Encoding with Smoothing (Rare Technique)
+from category_encoders import TargetEncoder
+
+encoder = TargetEncoder(cols=['Suburb', 'SellerG'], smoothing=10.0)
+
+# smoothing=10 prevents overfitting on rare suburbs:
+# If "NewSuburb" has only 2 sales, it won't overfit to those 2 prices
+# Instead, it blends toward the global mean price
+```
+
+**Smoothing Formula:**
+$$\text{Encoded Value} = \frac{n \cdot \bar{x}_{\text{category}} + m \cdot \bar{x}_{\text{global}}}{n + m}$$
+
+Where $n$ = category count, $m$ = smoothing factor, $\bar{x}$ = mean target
+
+### 📈 Ensemble-Based Confidence Intervals
+
+> **Beyond point predictions:** Quantify uncertainty using tree ensemble variance.
+
+```python
+# For Random Forest / XGBoost with multiple trees:
+if hasattr(model, 'estimators_'):
+    # Get prediction from EACH tree
+    tree_preds = [np.expm1(tree.predict(df)[0]) for tree in model.estimators_]
+    
+    # Standard deviation = prediction uncertainty
+    std = np.std(tree_preds)
+    
+    # Confidence interval
+    confidence_range = (price - std, price + std)
+    
+    # Coefficient of variation → confidence percentage
+    confidence_pct = max(0, min(100, 100 - (std/price)*100))
+```
+
+### 🔄 Complete Artifact Serialization
+
+> **Production Pattern:** Serialize the entire preprocessing pipeline, not just the model.
+
+```
+models/artifacts/
+├── target_encoder.joblib    # Fitted on training targets
+├── ohe_encoder.joblib       # Category mappings
+├── scaler_robust.joblib     # IQR statistics from training
+├── scaler_standard.joblib   # Mean/std from training
+├── suburb_info.joblib       # Suburb → (lat, long, region) lookup
+├── cols_robust.joblib       # Which columns use RobustScaler
+├── cols_standard.joblib     # Which columns use StandardScaler
+├── cols_target.joblib       # Target encoding columns
+├── cols_ohe.joblib          # One-hot encoding columns
+└── model_columns.joblib     # Exact column order for prediction
+```
+
+**Why this matters:**
+- ✅ New predictions use exact same transformations as training
+- ✅ No "training-serving skew" in production
+- ✅ Model can be deployed without access to training data
+
+### 🧮 Log Transform Strategy
+
+| Transform | Applied To | Purpose |
+|-----------|------------|---------|
+| `np.log1p(x)` | `Price` (target) | Normalize right-skewed distribution, improve model assumptions |
+| `np.log1p(x)` | `Distance`, `Landsize`, `BuildingArea`, `Propertycount` | Handle extreme skewness (Landsize skew: 40+) |
+| `np.expm1(pred)` | Predictions | Inverse transform to real dollar values |
+
+```python
+# Why log1p instead of log?
+# log(0) = undefined ❌
+# log1p(0) = log(1) = 0 ✅  (handles zero values safely)
+```
+
+---
+
 ## 🛠 Tech Stack
 
 ### Core ML/Data Science
