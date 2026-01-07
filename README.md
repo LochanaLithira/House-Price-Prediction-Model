@@ -12,9 +12,9 @@ An end-to-end Machine Learning solution to predict housing prices in Melbourne, 
 This project goes beyond standard implementations by utilizing domain-specific logic and advanced engineering techniques:
 
 * **📍 Geographic-Aware Imputation:** Uses **Suburb Centroid Imputation** to fill missing location data based on reliable anchors (≥3 houses), preserving spatial relationships.
-* **🎯 Target Encoding with Smoothing:** Handles high-cardinality features (Suburb, SellerG) effectively, using smoothing (10.0) to prevent overfitting on rare categories.
+* **🎯 Target Encoding with Smoothing:** Handles high-cardinality features effectively, using smoothing (10.0) to prevent overfitting on rare categories.
 * **⚖️ Dual-Scaling Strategy:** Applies `RobustScaler` for outlier-prone features and `StandardScaler` for normally distributed features.
-* **🧠 Smart Suburb Lookup:** The web app automatically fills 5 related fields (Region, Lat/Lon, etc.) when a user selects a suburb, improving user experience and data accuracy.
+* **🧠 Smart Suburb Lookup:** The web app automatically fills 5 related fields when a user selects a suburb, improving user experience and data accuracy.
 * **🔮 Confidence Estimation:** Calculates prediction confidence intervals during inference using iteration sampling.
 
 ## 🛠️ Tech Stack
