@@ -1,369 +1,232 @@
-<div align="center">
+## Melbourne House Price Prediction Model
 
-# 🏠 Melbourne House Price Prediction
-
-### Production-Ready ML Pipeline for Real Estate Valuation
-
-[![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org)
-
-*An end-to-end machine learning solution for estimating residential property prices in Melbourne, Australia.*
-
-
-</div>
+Interactive Streamlit application and end‑to‑end ML pipeline for estimating residential property values in Melbourne, based on the `Melbourne_housing_FULL.csv` dataset. The project covers data exploration, preprocessing, model training, evaluation, and deployment of a production‑style prediction service.
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Advanced Techniques](#-advanced-techniques--methodologies)
-- [Project Architecture](#-project-architecture)
-- [Quick Start](#-quick-start)
-- [Data Science Workflow](#-data-science-workflow)
-- [Model Performance](#-model-performance)
-- [API Reference](#-api-reference)
-- [Dataset](#-dataset-information)
-- [Contributing](#-contributing)
+- [Project Overview](#project-overview)
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Data & Preprocessing](#data--preprocessing)
+- [Model](#model)
+- [Running the App](#running-the-app)
+- [Industrial Practices & Design Choices](#industrial-practices--design-choices)
+- [Future Improvements](#future-improvements)
 
 ---
 
-## 🎯 Overview
+## Project Overview
 
-Real estate valuation is a complex problem influenced by numerous location-specific and property-specific factors. This project delivers a **production-ready machine learning pipeline** that provides instant property valuations based on historical Melbourne housing market data.
+This project builds a house price prediction model for Melbourne and exposes it via a user‑friendly Streamlit web app. Users select a suburb and specify property characteristics (rooms, bathrooms, car spaces, building area, land size, year built, etc.), and the app returns an estimated sale price along with a confidence indicator.
 
-### Business Value
-| Benefit | Description |
-|---------|-------------|
-| ⚡ **Instant Valuations** | Property estimates in milliseconds |
-| 📊 **Data-Driven** | Powered by 27,000+ historical transactions |
-| 🔍 **Explainable** | Transparent feature importance analysis |
-| 🚀 **Production-Ready** | Complete web interface with serialized pipeline |
+The full workflow includes:
 
----
-
-## ✨ Key Features
-
-| Feature | Description |
-|---------|-------------|
-| 🔄 **Robust Data Pipeline** | KNN & Spatial Centroid imputation for 50%+ missing data |
-| 📊 **Advanced Feature Engineering** | Dual scaling strategy + Target Encoding with smoothing |
-| 🤖 **Multi-Model Benchmarking** | Linear Regression, Random Forest, XGBoost, LightGBM |
-| ⚡ **Hyperparameter Tuning** | `RandomizedSearchCV` with 3-fold cross-validation |
-| 🎨 **Interactive Dashboard** | Streamlit UI with real-time predictions |
-| 📈 **Confidence Intervals** | Ensemble-based prediction uncertainty estimation |
+- Exploratory Data Analysis (EDA) and documentation of decisions.
+- Systematic data cleaning, feature engineering, and encoding.
+- Training a tree‑based ensemble regressor and persisting all preprocessing artifacts.
+- Deploying the trained model as an interactive application.
 
 ---
 
-## 🏆 Advanced Techniques & Methodologies
+## Features
 
-> **What sets this project apart:** Production-grade techniques that go beyond typical ML tutorials.
-
-### 🛡️ Data Leakage Prevention
-
-```
-❌ WRONG: Fit encoders on ALL data → Transform → Split
-✅ CORRECT: Split FIRST → Fit on Train ONLY → Transform both
-```
-
-| Strategy | Implementation |
-|----------|----------------|
-| **Split-First Protocol** | All transformations fitted exclusively on training data |
-| **Temporal Awareness** | Extracted `SoldYear` to capture market inflation effects |
-| **Strict Isolation** | Test set never seen during any preprocessing step |
+- **Interactive valuation UI** built with Streamlit (`app.py`).
+- **Suburb‑aware predictions** using suburb‑level metadata (latitude, longitude, region, property count, seller information).
+- **Robust preprocessing pipeline** with log transforms, robust scaling, one‑hot encoding, and target encoding.
+- **Consistent train/inference behavior** via saved encoders, scalers, and column lists.
+- **Basic uncertainty estimation**, showing a confidence range derived from the underlying ensemble.
+- **Clearly documented EDA & preprocessing decisions** in markdown and notebooks.
 
 ---
 
-### 🎯 Intelligent Missing Value Imputation
+## Project Structure
 
-Instead of dropping 50%+ of data or using naive mean/median fills:
+At a high level, the repository is organized as follows:
 
-| Technique | Applied To | Why It's Better |
-|-----------|------------|-----------------|
-| **KNN Imputation (k=5)** | `BuildingArea`, `YearBuilt`, `Car`, `Bathroom`, `Landsize` | Leverages property similarity — a 3-bedroom house in Richmond likely has similar specs to other 3-bedroom Richmond houses |
-| **Spatial Centroid Imputation** | `Latitude`, `Longitude` | Custom algorithm using suburb medians with global fallback |
-
-```python
-# Spatial Centroid Imputation (Custom Technique)
-# 1. Compute suburb centroids from TRAINING data only
-suburb_coords = X_train.groupby('Suburb')[['Lattitude', 'Longtitude']].median()
-
-# 2. Filter unreliable suburbs (< 3 samples)
-reliable_suburbs = suburb_counts[suburb_counts >= 3].index
-
-# 3. Apply with global median fallback for rare suburbs
-X_train['Lattitude'].fillna(X_train['Suburb'].map(suburb_coords['Lattitude']))
-```
-
----
-
-### 📊 Dual Scaling Strategy
-
-> **Key Insight:** Not all features should be scaled the same way.
-
-| Scaler | Features | Rationale |
-|--------|----------|-----------|
-| **RobustScaler** | `Rooms`, `Distance`, `Bathroom`, `Car`, `Landsize`, `BuildingArea`, `Propertycount` | Uses IQR — **immune to outliers**. A $9M mansion won't skew the scale. |
-| **StandardScaler** | `YearBuilt`, `Latitude`, `Longitude` | Normally distributed features without extreme outliers |
-
-```python
-# Why RobustScaler for Landsize?
-# Landsize: 99th percentile = 1,200 sqm, max = 400,000+ sqm
-# StandardScaler compresses 99% of data into tiny range
-# RobustScaler: centers on median, scales by IQR (ignores outliers)
-```
+- `app.py` – Streamlit application that loads artifacts, validates inputs, runs the preprocessing pipeline, and serves predictions.
+- `requirements.txt` – Python dependencies for the environment.
+- `data/`
+	- `raw/`
+		- `Melbourne_housing_FULL.csv` – Original dataset.
+	- `processed/` – Placeholder for cleaned/feature‑engineered datasets.
+- `models/`
+	- `house_price_model.joblib` – Trained regression model.
+	- `artifacts/`
+		- `suburb_info.joblib` – Dictionary of suburb‑level metadata used in the UI and model.
+		- `target_encoder.joblib` – Target encoder for high‑cardinality categorical features.
+		- `ohe_encoder.joblib` – One‑hot encoder for low‑cardinality categorical features.
+		- `scaler_robust.joblib`, `scaler_standard.joblib` – Fitted scalers for numeric features.
+		- `cols_robust.joblib`, `cols_standard.joblib`, `cols_target.joblib`, `cols_ohe.joblib` – Definitions of which columns each transformer applies to.
+		- `model_columns.joblib` – Final feature column order expected by the trained model.
+- `notebooks/`
+	- `eda.ipynb` – Exploratory data analysis.
+	- `preprocessing.ipynb` – Data cleaning and feature engineering.
+	- `model_training.ipynb` – Model training workflow.
+	- `evaluation.ipynb` – Model evaluation and diagnostics.
+- `reports/`
+	- `EDA_notes.md` – Narrative description of EDA findings and preprocessing strategy.
+- `src/` – Reserved for reusable Python modules (future extension of production code).
+- `env/` – Local virtual environment (not required if you create your own).
 
 ---
 
-### 🔐 Target Encoding with Smoothing
+## Data & Preprocessing
 
-> **Problem:** `Suburb` has 300+ unique values — One-Hot creates 300 sparse columns.
+The preprocessing design is documented in detail in `reports/EDA_notes.md`. Key steps include:
 
-| Approach | Issues |
-|----------|--------|
-| ❌ One-Hot Encoding | Dimensionality explosion, sparse matrix |
-| ❌ Label Encoding | Imposes false ordinal relationship |
-| ✅ **Target Encoding + Smoothing** | Maps suburb to regularized average price |
+### 1. Data Cleaning
 
-```python
-from category_encoders import TargetEncoder
-encoder = TargetEncoder(cols=['Suburb', 'SellerG'], smoothing=10.0)
+- Convert the `Date` column to a proper datetime type and extract `Sold_Year`.
+- Remove duplicate rows.
+- Handle logical inconsistencies, e.g.:
+	- `BuildingArea = 0` → treated as missing.
+	- `YearBuilt` constrained to a valid range (1800–current year); out‑of‑range values → missing.
+	- `Bathrooms = 0` treated as likely data error except for properties before 1900.
+- Normalize text and handle near‑duplicates:
+	- Standardize `Suburb` casing.
+	- Normalize `SellerG` (e.g., stripping suffixes after `/` and lowercasing).
 
-# smoothing=10: prevents overfitting on rare suburbs
-# "NewSuburb" with 2 sales blends toward global mean
-```
+### 2. Feature Selection
 
-**Smoothing Formula:**
-$$\text{Encoded Value} = \frac{n \cdot \bar{x}_{\text{category}} + m \cdot \bar{x}_{\text{global}}}{n + m}$$
+Drop columns that behave like identifiers or add little generalizable signal, such as:
 
-Where $n$ = category count, $m$ = smoothing factor, $\bar{x}$ = mean target
+- `Address` (high cardinality, acts as ID).
+- `Bedroom2` (redundant with `Rooms`).
+- `CouncilArea`, `Postcode` when redundant with other spatial features.
+- `Method` due to potential leakage (describes sale outcome).
+- Rows with missing target (`Price`).
 
----
+### 3. Missing Value Imputation
 
-### 📈 Ensemble-Based Confidence Intervals
+Different strategies are used based on variable type and missingness pattern:
 
-> **Beyond point predictions:** Quantify uncertainty using tree ensemble variance.
+- **Row drops** for critical fields: remove rows with missing `Price` or `Postcode`.
+- **KNN imputation** for structural missingness in numeric features:
+	- `Car`, `Landsize`, `BuildingArea`, `YearBuilt`, `Bathroom`.
+- **Suburb centroid imputation** for spatial fields:
+	- `Lattitude`, `Longtitude` (using suburb‑level aggregates, after train/test split).
+- **Simple statistical imputation** (mean/median/mode) for:
+	- `Regionname`, `Propertycount`, `Distance`.
 
-```python
-if hasattr(model, 'estimators_'):
-    # Get prediction from EACH tree
-    tree_preds = [np.expm1(tree.predict(df)[0]) for tree in model.estimators_]
-    std = np.std(tree_preds)  # Standard deviation = uncertainty
-    confidence_range = (price - std, price + std)
-```
+### 4. Feature Engineering & Transformations
 
----
+- Create `SoldYear` from the sale date to capture temporal effects (e.g. inflation).
+- Group rare region categories into `Regional Victoria`.
+- Use `np.log1p` to reduce skew for:
+	- Target: `Price` (during training).
+	- Predictors: `Distance`, `Bathroom`, `Car`, `Landsize`, `BuildingArea`, `Propertycount`.
+- Leave reasonably symmetric or already bounded features (e.g. `Rooms`, `Lattitude`, `Longtitude`) untransformed.
 
-### 🧮 Log Transform Strategy
+### 5. Scaling & Encoding
 
-| Transform | Purpose |
-|-----------|---------|
-| `np.log1p(Price)` | Normalize right-skewed target distribution |
-| `np.log1p(features)` | Handle extreme skewness (Landsize skew: 40+) |
-| `np.expm1(pred)` | Inverse transform to real dollar values |
+- **RobustScaler** for outlier‑sensitive numeric features (`Rooms`, `Distance`, `Bathroom`, `Car`, `Landsize`, `BuildingArea`, `Propertycount`).
+- **StandardScaler** for more stable numeric features (`YearBuilt`, `Lattitude`, `Longtitude`).
+- **One‑hot encoding** for low‑cardinality categoricals (`Type`, grouped `Regionname`).
+- **Target encoding** for high‑cardinality categoricals (`Suburb`, `SellerG`).
 
-```python
-# Why log1p instead of log?
-# log(0) = undefined ❌
-# log1p(0) = log(1) = 0 ✅  (handles zero values safely)
-```
-
----
-
-### 🔄 Complete Artifact Serialization
-
-> **Production Pattern:** Serialize entire preprocessing pipeline, not just the model.
-
-**Why this matters:**
-- ✅ New predictions use exact same transformations as training
-- ✅ No "training-serving skew" in production
-- ✅ Model deployable without access to training data
+All fitted transformers and the column subsets they operate on are saved into `models/artifacts/` and re‑used at prediction time for strict train/inference consistency.
 
 ---
 
-## 📁 Project Architecture
+## Model
 
-```
-House-Price-Prediction-Model/
-│
-├── 📱 app.py                           # Streamlit web application
-├── 📋 requirements.txt                 # Python dependencies
-│
-├── 📊 data/
-│   ├── raw/
-│   │   └── Melbourne_housing_FULL.csv  # Original dataset (34,857 records)
-│   └── processed/                      # Train/test parquet files
-│
-├── 🤖 models/
-│   ├── house_price_model.joblib        # Final production model
-│   └── artifacts/                      # 10 preprocessing artifacts
-│       ├── target_encoder.joblib       # Suburb/Seller encoder
-│       ├── ohe_encoder.joblib          # One-hot encoder
-│       ├── scaler_robust.joblib        # RobustScaler
-│       ├── scaler_standard.joblib      # StandardScaler
-│       ├── suburb_info.joblib          # Suburb → (lat, long, region)
-│       └── model_columns.joblib        # Feature column order
-│
-├── 📓 notebooks/
-│   ├── eda.ipynb                       # Exploratory Data Analysis
-│   ├── preprocessing.ipynb             # Feature engineering
-│   ├── model_training.ipynb            # Model selection & tuning
-│   └── evaluation.ipynb                # Performance diagnostics
-│
-└── 📝 reports/
-    └── EDA_notes.md                    # Data insights
-```
+The trained model is a tree‑based ensemble regressor serialized as `models/house_price_model.joblib`. While the exact estimator type is abstracted behind the joblib file, the prediction interface follows a standard scikit‑learn‑style `predict` API.
+
+In `app.py`, the following steps are performed at inference time:
+
+1. Construct a single‑row `pandas.DataFrame` from user inputs.
+2. Apply the same log transforms, scalers (robust/standard), one‑hot encoder, and target encoder as used during training.
+3. Reindex the feature matrix to match `model_columns` exactly, ensuring compatibility with the trained model.
+4. Obtain a **log‑space prediction** and inverse‑transform it with `np.expm1` to get a price in dollars.
+5. Optionally approximate a **confidence range**:
+	 - For ensemble models exposing individual estimators, compute dispersion across trees.
+	 - For iterative boosting models, sample predictions across iterations.
 
 ---
 
-## 🛠 Tech Stack
+## Running the App
 
-| Category | Technologies |
-|----------|-------------|
-| **Core ML** | `pandas` `numpy` `scikit-learn` `xgboost` `lightgbm` `category_encoders` |
-| **Visualization** | `matplotlib` `seaborn` `plotly` `missingno` |
-| **Deployment** | `streamlit` `joblib` `pyarrow` |
-| **Development** | `jupyterlab` |
+### 1. Set Up Environment
 
----
-
-## 🚀 Quick Start
-
-### Installation
+It is recommended to use a virtual environment (you can reuse the existing `env/` or create a new one).
 
 ```bash
-# Clone & setup
-git clone https://github.com/yourusername/House-Price-Prediction-Model.git
-cd House-Price-Prediction-Model
-
-# Create environment
 python -m venv env
-.\env\Scripts\activate  # Windows
-# source env/bin/activate  # macOS/Linux
+env\Scripts\activate  # On Windows
 
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Launch Application
+### 2. Start the Streamlit App
+
+From the project root:
 
 ```bash
 streamlit run app.py
 ```
 
-Opens at `http://localhost:8501`
+This will start a local server and open the **Melbourne House Value Estimator** in your browser.
+
+### 3. Using the App
+
+1. Select a **suburb** from the dropdown.
+2. Adjust property **rooms**, **bathrooms**, **car spaces**, **land size**, **building area**, **year built**, and **distance to CBD**.
+3. Click **"Estimate Price"**.
+4. If inputs are valid, the app displays an estimated value; otherwise, detailed validation errors are shown.
 
 ---
 
-## 🧠 Data Science Workflow
+## Industrial Practices & Design Choices
 
-### Phase 1: EDA → `notebooks/eda.ipynb`
+This project incorporates several practices aligned with real‑world, production‑grade ML systems:
 
-| Finding | Detail |
-|---------|--------|
-| **Data Quality** | 34,857 records, 21 features, 1 duplicate |
-| **Missing Values** | BuildingArea (50%+), YearBuilt (50%+) |
-| **Target** | Right-skewed ($300K - $9M) |
-| **Key Correlations** | Rooms↔Price (+0.49), Distance↔Price (-0.32) |
+### 1. Reproducible Environments & Dependencies
 
-### Phase 2: Preprocessing → `notebooks/preprocessing.ipynb`
+- Use of a dedicated virtual environment (`env/`).
+- Explicit `requirements.txt` with pinned versions for core libraries (pandas, numpy, scikit‑learn, xgboost, lightgbm, streamlit, etc.).
+- Clear separation between environment setup and project code.
 
-```
-Raw Data (34,857) → Clean → Impute → Transform → Encode → Clean Data (27,247)
-```
+### 2. Clear Separation of Concerns
 
-### Phase 3: Model Training → `notebooks/model_training.ipynb`
+- **Experimentation vs. production**:
+	- Jupyter notebooks in `notebooks/` for EDA, preprocessing design, model training, and evaluation.
+	- A focused application entry point (`app.py`) for serving predictions.
+- **Data lifecycle separation**:
+	- Distinct `data/raw/` and `data/processed/` folders.
+- **Model vs. artifacts**:
+	- Model and all preprocessing assets stored under `models/` and `models/artifacts/` for easy deployment and versioning.
+- **Documentation**: Narrative EDA and preprocessing rationale in `reports/EDA_notes.md`.
 
-| Model | Performance |
-|-------|-------------|
-| Linear Regression | Baseline |
-| Random Forest | Good |
-| **XGBoost** | **Best** |
-| LightGBM | Excellent |
+### 3. Production‑Style Preprocessing Pipeline
 
-### Phase 4: Evaluation → `notebooks/evaluation.ipynb`
-- Actual vs Predicted plots
-- Residual analysis
-- Feature importance ranking
+- Every transformation used in training (log transforms, scaling, encodings) is serialized and re‑applied at inference.
+- Column subsets for each transformer are saved (`cols_robust`, `cols_standard`, `cols_target`, `cols_ohe`) to avoid hard‑coding feature indices.
+- Final model input schema (`model_columns`) is stored and enforced via `DataFrame.reindex`, reducing risk of column mismatch when models or features change.
+- Systematic treatment of missing data with appropriate strategies (KNN imputation, centroid imputation, statistical imputation) driven by EDA insights.
 
----
+### 4. Robust Inference Service
 
-## 📈 Model Performance
+- **Caching of heavy resources** with `@st.cache_resource` to avoid reloading large models and artifacts on each interaction.
+- **Defensive loading** with explicit error handling for missing files (`FileNotFoundError`) and graceful app termination when critical artifacts are unavailable.
+- **Input validation** before prediction:
+	- Prevents impossible values (e.g. future `Year Built`, non‑positive land/building size).
+	- Collects and presents user‑friendly error messages.
+- **Basic model‑uncertainty signal** by inspecting variation across ensemble components or iterations, translated into a confidence percentage and range.
 
-| Metric | Value | Interpretation |
-|--------|-------|----------------|
-| **MAE** | ~$150,000 | Average prediction error |
-| **RMSE** | ~$220,000 | Penalizes large errors |
-| **R²** | ~0.75 | Explains 75% of variance |
+### 5. MLOps‑Friendly Design
 
-### Top Features
-1. `Suburb` (Target Encoded)
-2. `BuildingArea`
-3. `Rooms`
-4. `Distance` (to CBD)
-5. `YearBuilt`
+- All model‑time dependencies (model, encoders, scalers, column lists, metadata) are bundled as artifacts, enabling straightforward redeployment without notebooks.
+- The app code (`app.py`) is thin and mostly orchestrates loading artifacts, validating inputs, applying the pipeline, and calling `predict`.
+- The repository layout (`data/`, `models/`, `notebooks/`, `reports/`, `src/`) matches common patterns in production ML projects, easing collaboration and future automation (CI/CD, retraining pipelines, etc.).
 
 ---
 
-## 📚 API Reference
+## Future Improvements
 
-```python
-import joblib
-import numpy as np
-
-# Load artifacts
-model = joblib.load('models/house_price_model.joblib')
-suburb_info = joblib.load('models/artifacts/suburb_info.joblib')
-# ... load other artifacts
-
-# Create input & preprocess (see app.py for full pipeline)
-df = pd.DataFrame([input_data])
-
-# Predict
-log_pred = model.predict(df)[0]
-price = np.expm1(log_pred)
-print(f"Estimated: ${price:,.0f}")
-```
-
----
-
-## 🗂 Dataset Information
-
-**Melbourne Housing Market** - 34,857 historical property sales
-
-| Feature | Type | Notes |
-|---------|------|-------|
-| `Suburb` | Categorical | 300+ unique values |
-| `Rooms` | Numeric | Number of rooms |
-| `Type` | Categorical | h=house, u=unit, t=townhouse |
-| `Price` | Numeric | **Target variable** |
-| `Distance` | Numeric | Distance from CBD (km) |
-| `Landsize` | Numeric | Land size (sqm) |
-| `BuildingArea` | Numeric | Building size (sqm) |
-| `YearBuilt` | Numeric | Construction year |
-| `Lattitude/Longtitude` | Numeric | Geographic coordinates |
-| `Regionname` | Categorical | General region |
-
-*Dropped: Address, Postcode, CouncilArea, Method, Bedroom2 (redundant/leaky)*
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-
-
-<div align="center">
-
-
-
-[⬆ Back to Top](#-melbourne-house-price-prediction)
-
-</div>
+- Add automated tests for the preprocessing pipeline and prediction logic.
+- Move reusable preprocessing code from notebooks into importable modules under `src/`.
+- Implement model versioning and experiment tracking (e.g., MLflow or similar).
+- Add richer explainability in the app (feature importance, SHAP values, or partial dependence plots).
+- Containerize the application (Docker) and integrate into a CI/CD pipeline for deployment.
