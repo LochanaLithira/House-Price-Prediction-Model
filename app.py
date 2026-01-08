@@ -38,7 +38,6 @@ def load_system():
 
 try:
     model, suburb_info, te, ohe, s_rob, s_std, cols_rob, cols_std, cols_target, cols_ohe, model_cols = load_system()
-    st.toast("System Loaded Successfully!")
 except FileNotFoundError as e:
     st.error(f"Critical Error: Missing file. \nDetails: {e}")
     st.stop()
